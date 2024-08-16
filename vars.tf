@@ -1,4 +1,15 @@
+## TAGS ##
+
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
+
 ## DATAS ##
+
+variable "resource_group_name" {
+  type = string
+}
 
 variable "virtual_network_name" {
   type    = string
@@ -60,10 +71,10 @@ variable "hpc_cache" {
       password_file_uri = string
     })))
     directory_ldap = optional(list(object({
-      base_dn                            = string
-      server                             = string
-      encrypted                          = optional(bool)
-      certificate_validation_uri         = optional(string)
+      base_dn                    = string
+      server                     = string
+      encrypted                  = optional(bool)
+      certificate_validation_uri = optional(string)
       bind = optional(list(object({
         dn       = optional(string)
         password = optional(string)
@@ -74,7 +85,123 @@ variable "hpc_cache" {
       search_domain = optional(string)
     })))
     identity_type = optional(string)
-    identity_ids = optional(list(string))
+    identity_ids  = optional(list(string))
+  }))
+  default = []
+
+  validation {
+    condition = length([
+      for a in var.hpc_cache : true if contains(["3072", "6144", "12288", "21623", "24576", "43246", "49152", "86491"], a.cache_size_in_gb)
+    ]) == length(var.hpc_cache)
+    error_message = "Possible values are 3072, 6144, 12288, 21623, 24576, 43246, 49152 and 86491."
+  }
+
+  validation {
+    condition = length([
+      for b in var.hpc_cache : true if contains(["Standard_2G", "Standard_4G", "Standard_8G", "Standard_L4_5G", "Standard_L9G", "Standard_L16G"], b.sku_name)
+    ]) == length(var.hpc_cache)
+    error_message = "Possible values are (ReadWrite) - Standard_2G, Standard_4G Standard_8G or (ReadOnly) - Standard_L4_5G, Standard_L9G, and Standard_L16G."
+  }
+
+  validation {
+    condition = length([
+      for c in var.hpc_cache : true if contains(["default", "network", "host"], c.default_access_policy.access_rule.scope)
+    ]) == length(var.hpc_cache)
+    error_message = "Possible values are: default, network, host."
+  }
+
+  validation {
+    condition = length([
+      for d in var.hpc_cache : true if contains(["rw", "ro", "no"], d.default_access_policy.access_rule.access)
+    ]) == length(var.hpc_cache)
+    error_message = "Possible values are: rw, ro, no."
+  }
+
+  validation {
+    condition = length([
+      for e in var.hpc_cache : true if contains(["SystemAssigned", "UserAssigned"], e.identity_type)
+    ]) == length(var.hpc_cache)
+    error_message = "Possible values are SystemAssigned, UserAssigned, SystemAssigned, UserAssigned (to enable both)."
+  }
+}
+
+variable "hpc_cache_access_policy" {
+  type = list(object({
+    id           = number
+    hpc_cache_id = any
+    name         = string
+    access_rule = list(object({
+      access                  = string
+      scope                   = string
+      filter                  = optional(string)
+      suid_enabled            = optional(bool)
+      submount_access_enabled = optional(bool)
+      root_squash_enabled     = optional(bool)
+      anonymous_gid           = optional(number)
+      anonymous_uid           = optional(number)
+    }))
+  }))
+  default = []
+
+  validation {
+    condition = length([
+      for c in var.hpc_cache_access_policy : true if contains(["default", "network", "host"], c.access_rule.scope)
+    ]) == length(var.hpc_cache_access_policy)
+    error_message = "Possible values are: default, network, host."
+  }
+
+  validation {
+    condition = length([
+      for d in var.hpc_cache_access_policy : true if contains(["rw", "ro", "no"], d.access_rule.access)
+    ]) == length(var.hpc_cache_access_policy)
+    error_message = "Possible values are: rw, ro, no."
+  }
+}
+
+variable "hpc_cache_blob_nfs_target" {
+  type = list(object({
+    id                            = number
+    hpc_cache_id                  = any
+    name                          = string
+    namespace_path                = string
+    storage_container_id          = any
+    usage_model                   = string
+    verification_timer_in_seconds = optional(number)
+    write_back_timer_in_seconds   = optional(number)
+    access_policy_id              = optional(any)
+  }))
+  default = []
+
+  validation {
+    condition = length([
+      for a in var.hpc_cache_blob_nfs_target : true if contains(["READ_HEAVY_INFREQ", "READ_HEAVY_CHECK_180", "READ_ONLY", "READ_WRITE", "WRITE_WORKLOAD_15", "WRITE_AROUND", "WRITE_WORKLOAD_CHECK_30", "WRITE_WORKLOAD_CHECK_60", "WRITE_WORKLOAD_CLOUDWS"], a.usage_model)
+    ]) == length(var.hpc_cache_blob_nfs_target)
+    error_message = "Possible values are: READ_HEAVY_INFREQ, READ_HEAVY_CHECK_180, READ_ONLY, READ_WRITE, WRITE_WORKLOAD_15, WRITE_AROUND, WRITE_WORKLOAD_CHECK_30, WRITE_WORKLOAD_CHECK_60 and WRITE_WORKLOAD_CLOUDWS."
+  }
+
+  validation {
+    condition = length([
+      for b in var.hpc_cache_blob_nfs_target : true if b.verification_timer_in_seconds >= 1 && b.verification_timer_in_seconds <= 31536000
+    ]) == length(var.hpc_cache_blob_nfs_target)
+    error_message = "Possible values are between 1 and 31536000."
+  }
+
+  validation {
+    condition = length([
+      for c in var.hpc_cache_blob_nfs_target : true if c.write_back_timer_in_seconds >= 1 && c.write_back_timer_in_seconds <= 31536000
+    ]) == length(var.hpc_cache_blob_nfs_target)
+    error_message = "Possible values are between 1 and 31536000."
+  }
+}
+
+variable "hpc_cache_blob_target" {
+  type = list(object({
+    id                   = number
+    hpc_cache_id         = any
+    name                 = string
+    namespace_path       = string
+    storage_container_id = any
+    access_policy_id     = optional(any)
   }))
   default = []
 }
@@ -161,6 +288,13 @@ variable "account" {
         endpoint_tenant_id   = optional(string)
       })))
     })))
+  }))
+  default = []
+}
+
+variable "container" {
+  type = list(object({
+    id = number
   }))
   default = []
 }

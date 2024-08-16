@@ -24,8 +24,8 @@ resource "azurerm_hpc_cache" "this" {
           suid_enabled            = lookup(access_rule.value, "suid_enabled")
           submount_access_enabled = lookup(access_rule.value, "submount_access_enabled")
           root_squash_enabled     = lookup(access_rule.value, "root_squash_enabled")
-          anonymous_uid           = lookup(access_rule.value, "anonymous_uid")
-          anonymous_gid           = lookup(access_rule.value, "anonymous_gid")
+          anonymous_uid           = lookup(access_rule.value, "root_squash_enabled") == true ? lookup(access_rule.value, "anonymous_uid") : null
+          anonymous_gid           = lookup(access_rule.value, "root_squash_enabled") == true ? lookup(access_rule.value, "anonymous_gid") : null
         }
       }
     }
@@ -85,6 +85,49 @@ resource "azurerm_hpc_cache" "this" {
       identity_ids = lookup(var.hpc_cache[count.index], "identity_ids")
     }
   }
+}
+
+resource "azurerm_hpc_cache_access_policy" "this" {
+  count        = length(var.hpc_cache) == 0 ? 0 : length(var.hpc_cache_access_policy)
+  hpc_cache_id = try(element(azurerm_hpc_cache.this.*.id, lookup(var.hpc_cache_access_policy[count.index], "hpc_cache_id")))
+  name         = lookup(var.hpc_cache_access_policy[count.index], "name")
+
+  dynamic "access_rule" {
+    for_each = lookup(var.hpc_cache_access_policy[count.index], "access_rule")
+    content {
+      access                  = lookup(access_rule.value, "access")
+      scope                   = lookup(access_rule.value, "scope")
+      filter                  = lookup(access_rule.value, "filter")
+      suid_enabled            = lookup(access_rule.value, "suid_enabled")
+      submount_access_enabled = lookup(access_rule.value, "submount_access_enabled")
+      root_squash_enabled     = lookup(access_rule.value, "root_squash_enabled")
+      anonymous_gid           = lookup(access_rule.value, "root_squash_enabled") == true ? lookup(access_rule.value, "anonymous_gid") : null
+      anonymous_uid           = lookup(access_rule.value, "root_squash_enabled") == true ? lookup(access_rule.value, "anonymous_uid") : null
+    }
+  }
+}
+
+resource "azurerm_hpc_cache_blob_nfs_target" "this" {
+  count                         = (length(var.container) && length(var.hpc_cache)) == 0 ? 0 : length(var.hpc_cache_blob_nfs_target)
+  cache_name                    = try(element(azurerm_hpc_cache.this.*.name, lookup(var.hpc_cache_blob_nfs_target[count.index], "hpc_cache_id")))
+  name                          = lookup(var.hpc_cache_blob_nfs_target[count.index], "name")
+  namespace_path                = lookup(var.hpc_cache_blob_nfs_target[count.index], "namespace_path")
+  resource_group_name           = data.azurerm_resource_group.this.name
+  storage_container_id          = jsonencode(try(element(azurerm_storage_container.this.*.id, lookup(var.hpc_cache_blob_nfs_target[count.index], "storage_container_id"))))
+  usage_model                   = lookup(var.hpc_cache_blob_nfs_target[count.index], "usage_model")
+  verification_timer_in_seconds = lookup(var.hpc_cache_blob_nfs_target[count.index], "verification_timer_in_seconds")
+  write_back_timer_in_seconds   = lookup(var.hpc_cache_blob_nfs_target[count.index], "write_back_timer_in_seconds")
+  access_policy_name            = try(element(azurerm_hpc_cache_access_policy.this.*.id, lookup(var.hpc_cache_blob_nfs_target[count.index], "access_policy_id")))
+}
+
+resource "azurerm_hpc_cache_blob_target" "this" {
+  count                = (length(var.hpc_cache) && length(var.container)) == 0 ? 0 : length(var.hpc_cache_blob_target)
+  cache_name           = try(element(azurerm_hpc_cache.this.*.name, lookup(var.hpc_cache_blob_target[count.index], "hpc_cache_id")))
+  name                 = lookup(var.hpc_cache_blob_target[count.index], "name")
+  namespace_path       = lookup(var.hpc_cache_blob_target[count.index], "namespace_path")
+  resource_group_name  = data.azurerm_resource_group.this.name
+  storage_container_id = try(element(azurerm_storage_container.this.*.id, lookup(var.hpc_cache_blob_target[count.index], "storage_container_id")))
+  access_policy_name   = try(element(azurerm_hpc_cache_access_policy.this.*.name, lookup(var.hpc_cache_blob_target[count.index], "access_policy_id")))
 }
 
 resource "azurerm_storage_account" "this" {
@@ -232,32 +275,36 @@ resource "azurerm_storage_account" "this" {
         }
       }
     }
-  } /*
-
-  dynamic "queue_properties" {
-    for_each = ""
-    content {}
   }
-
-  dynamic "routing" {
-    for_each = ""
-    content {}
-  }
-
-  dynamic "sas_policy" {
-    for_each = ""
-    content {
-      expiration_period = ""
+  /*
+    dynamic "queue_properties" {
+      for_each = ""
+      content {    }
+  /*
+    dynamic "routing" {
+      for_each = ""
+      content {}
     }
-  }
 
-  dynamic "share_properties" {
-    for_each = ""
-    content {}
-  }
+    dynamic "sas_policy" {
+      for_each = ""
+      content {
+        expiration_period = ""
+      }
+    }
 
-  dynamic "static_website" {
-    for_each = ""
-    content {}
-  }*/
+    dynamic "share_properties" {
+      for_each = ""
+      content {}
+    }
+
+    dynamic "static_website" {
+      for_each = ""
+      content {}
+    }*/
+}
+
+resource "azurerm_storage_container" "this" {
+  name                 = ""
+  storage_account_name = ""
 }
