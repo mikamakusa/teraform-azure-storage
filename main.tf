@@ -130,6 +130,27 @@ resource "azurerm_hpc_cache_blob_target" "this" {
   access_policy_name   = try(element(azurerm_hpc_cache_access_policy.this.*.name, lookup(var.hpc_cache_blob_target[count.index], "access_policy_id")))
 }
 
+resource "azurerm_hpc_cache_nfs_target" "this" {
+  count                         = length(var.hpc_cache) == 0 ? 0 : length(var.hpc_cache_nfs_target)
+  cache_name                    = try(element(azurerm_hpc_cache.this.*.name, lookup(var.hpc_cache_nfs_target[count.index], "cache_id")))
+  name                          = lookup(var.hpc_cache_nfs_target[count.index], "name")
+  resource_group_name           = data.azurerm_resource_group.this.name
+  target_host_name              = data.azurerm_virtual_machine.this.private_ip_address
+  usage_model                   = lookup(var.hpc_cache_nfs_target[count.index], "usage_model")
+  verification_timer_in_seconds = lookup(var.hpc_cache_nfs_target[count.index], "verification_timer_in_seconds")
+  write_back_timer_in_seconds   = lookup(var.hpc_cache_nfs_target[count.index], "write_back_timer_in_seconds")
+
+  dynamic "namespace_junction" {
+    for_each = lookup(var.hpc_cache_nfs_target[count.index], "namespace_junction")
+    content {
+      namespace_path     = lookup(namespace_junction.value, "namespace_path")
+      nfs_export         = lookup(namespace_junction.value, "nfs_export")
+      target_path        = lookup(namespace_junction.value, "target_path")
+      access_policy_name = lookup(namespace_junction.value, "access_policy_name")
+    }
+  }
+}
+
 resource "azurerm_storage_account" "this" {
   count                             = length(var.account)
   account_replication_type          = lookup(var.account[count.index], "account_replication_type")
@@ -237,7 +258,7 @@ resource "azurerm_storage_account" "this" {
     content {
       user_assigned_identity_id = lookup(customer_managed_key.value, "user_assigned_identity_id")
       #managed_hsm_key_id = ""
-      #key_vault_key_id = ""
+      key_vault_key_id = try(element(module.key_vault.*.key_vault_key_id, lookup(customer_managed_key.value, "key_vault_key_id")))
     }
   }
 
@@ -304,7 +325,18 @@ resource "azurerm_storage_account" "this" {
     }*/
 }
 
+resource "azurerm_storage_account_customer_managed_key" "this" {
+  count              = (length(var.keyvault_key) && length(var.account)) == 0 ? 0 : length(var.customer_managed_key)
+  key_name           = try(element(module.key_vault.*.key_vault_key_name, lookup(var.customer_managed_key[count.index], "key_id")))
+  storage_account_id = try(element(azurerm_storage_account.this.*.id, lookup(var.customer_managed_key[count.index], "storage_account_id")))
+  key_vault_id       = try(element(module.key_vault.key_vault_id, lookup(var.customer_managed_key[count.index], "key_vault_id")))
+  key_version        = lookup(var.customer_managed_key[count.index], "key_version")
+  #user_assigned_identity_id = ""
+  #federated_identity_client_id = ""
+}
+
 resource "azurerm_storage_container" "this" {
-  name                 = ""
-  storage_account_name = ""
+  count                = length(var.account) == 0 ? 0 : length(var.container)
+  name                 = lookup(var.container[count.index], "name")
+  storage_account_name = try(element(azurerm_storage_account.this.*.name, lookup(var.container[count.index], "storage_account_id")))
 }

@@ -21,6 +21,16 @@ variable "subnet_name" {
   default = null
 }
 
+variable "network_interface_name" {
+  type    = string
+  default = null
+}
+
+variable "virtual_machine_name" {
+  type    = string
+  default = null
+}
+
 ## MODULES ##
 
 variable "keyvault" {
@@ -206,6 +216,45 @@ variable "hpc_cache_blob_target" {
   default = []
 }
 
+variable "hpc_cache_nfs_target" {
+  type = list(object({
+    id                            = number
+    cache_id                      = any
+    name                          = string
+    usage_model                   = string
+    verification_timer_in_seconds = optional(number)
+    write_back_timer_in_seconds   = optional(number)
+    namespace_junction = list(object({
+      namespace_path     = string
+      nfs_export         = string
+      target_path        = optional(string)
+      access_policy_name = optional(string)
+    }))
+  }))
+  default = []
+
+  validation {
+    condition = length([
+      for a in var.hpc_cache_nfs_target : true if contains(["READ_HEAVY_INFREQ", "READ_HEAVY_CHECK_180", "READ_ONLY", "READ_WRITE", "WRITE_WORKLOAD_15", "WRITE_AROUND", "WRITE_WORKLOAD_CHECK_30", "WRITE_WORKLOAD_CHECK_60", "WRITE_WORKLOAD_CLOUDW"], a.usage_model)
+    ]) == length(var.hpc_cache_nfs_target)
+    error_message = "Possible values are: READ_HEAVY_INFREQ, READ_HEAVY_CHECK_180, READ_ONLY, READ_WRITE, WRITE_WORKLOAD_15, WRITE_AROUND, WRITE_WORKLOAD_CHECK_30, WRITE_WORKLOAD_CHECK_60 and WRITE_WORKLOAD_CLOUDWS."
+  }
+
+  validation {
+    condition = length([
+      for b in var.hpc_cache_nfs_target : true if b.verification_timer_in_seconds >= 1 && b.verification_timer_in_seconds <= 31336000
+    ]) == length(var.hpc_cache_nfs_target)
+    error_message = "Possible values are between 1 and 31536000."
+  }
+
+  validation {
+    condition = length([
+      for c in var.hpc_cache_nfs_target : true if c.write_back_timer_in_seconds >= 1 && c.write_back_timer_in_seconds <= 31336000
+    ]) == length(var.hpc_cache_nfs_target)
+    error_message = "Possible values are between 1 and 31536000."
+  }
+}
+
 variable "account" {
   type = list(object({
     id                                = number
@@ -267,7 +316,8 @@ variable "account" {
       restore_policy_days = optional(number)
     })))
     customer_managed_key = optional(list(object({
-      user_assigned_identity_id = string
+      user_assigned_identity_id = optional(string)
+      key_vault_key_id          = any
     })))
     identity = optional(list(object({
       type         = string
@@ -292,9 +342,22 @@ variable "account" {
   default = []
 }
 
+variable "customer_managed_key" {
+  type = list(object({
+    id                 = number
+    key_id             = any
+    storage_account_id = any
+    key_vault_id       = optional(any)
+    key_version        = optional(string)
+  }))
+  default = []
+}
+
 variable "container" {
   type = list(object({
-    id = number
+    id                 = number
+    name               = string
+    storage_account_id = optional(any)
   }))
   default = []
 }
