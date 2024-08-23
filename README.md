@@ -15,7 +15,7 @@
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_key_vault"></a> [key\_vault](#module\_key\_vault) | modules/terraform-azure-keyvault | n/a |
+| <a name="module_key_vault"></a> [key\_vault](#module\_key\_vault) | ./modules/terraform-azure-keyvault | n/a |
 
 ## Resources
 
