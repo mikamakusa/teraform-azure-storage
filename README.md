@@ -79,4 +79,5 @@
 | <a name="output_hpc_cache_sku_name"></a> [hpc\_cache\_sku\_name](#output\_hpc\_cache\_sku\_name) | n/a |
 | <a name="output_storage_account_id"></a> [storage\_account\_id](#output\_storage\_account\_id) | n/a |
 | <a name="output_storage_account_name"></a> [storage\_account\_name](#output\_storage\_account\_name) | n/a |
+| <a name="output_storage_account_primary_blob_connection_string"></a> [storage\_account\_primary\_blob\_connection\_string](#output\_storage\_account\_primary\_blob\_connection\_string) | n/a |
 | <a name="output_storage_account_primary_connection_string"></a> [storage\_account\_primary\_connection\_string](#output\_storage\_account\_primary\_connection\_string) | n/a |

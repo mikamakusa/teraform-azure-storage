@@ -18,6 +18,12 @@ output "storage_account_primary_connection_string" {
   )
 }
 
+output "storage_account_primary_blob_connection_string" {
+  value = try(
+    azurerm_storage_account.this.*.primary_blob_connection_string
+  )
+}
+
 ## HPC CACHE ##
 
 output "hpc_cache_id" {
