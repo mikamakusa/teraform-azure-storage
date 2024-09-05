@@ -335,8 +335,174 @@ resource "azurerm_storage_account_customer_managed_key" "this" {
   #federated_identity_client_id = ""
 }
 
+resource "azurerm_storage_account_local_user" "this" {
+  count                = length(var.account) == 0 ? 0 : length(var.local_user)
+  name                 = lookup(var.local_user[count.index], "name")
+  storage_account_id   = try(element(azurerm_storage_account.this.*.id, lookup(var.local_user[count.index], "storage_account_id")))
+  home_directory       = lookup(var.local_user[count.index], "home_directory")
+  ssh_key_enabled      = lookup(var.local_user[count.index], "ssh_key_enabled")
+  ssh_password_enabled = lookup(var.local_user[count.index], "ssh_password_enabled")
+
+  dynamic "permission_scope" {
+    for_each = try(lookup(var.local_user[count.index], "permission_scope") == null ? [] : ["permission_scope"])
+    iterator = per
+    content {
+      resource_name = lookup(per.value, "resource_name")
+      service       = lookup(per.value, "service")
+
+      dynamic "permissions" {
+        for_each = try(lookup(per.value, "permissions") == null ? [] : ["permissions"])
+        content {
+          create = try(lookup(permissions.value, "all") == true ? true : lookup(permissions.value, "create", false))
+          delete = try(lookup(permissions.value, "all") == true ? true : lookup(permissions.value, "delete", false))
+          list   = try(lookup(permissions.value, "all") == true ? true : lookup(permissions.value, "list", false))
+          read   = try(lookup(permissions.value, "all") == true ? true : lookup(permissions.value, "read", false))
+          write  = try(lookup(permissions.value, "all") == true ? true : lookup(permissions.value, "write", false))
+        }
+      }
+    }
+  }
+
+  dynamic "ssh_authorized_key" {
+    for_each = try(lookup(var.local_user[count.index], "ssh_authorized_key") == null ? [] : ["ssh_authorized_key"])
+    iterator = ssh
+    content {
+      key         = lookup(ssh.value, "key")
+      description = lookup(ssh.value, "description")
+    }
+  }
+}
+
+resource "azurerm_storage_account_network_rules" "this" {
+  count                      = length(var.account) == 0 ? 0 : length(var.network_rules)
+  default_action             = lookup(var.network_rules[count.index], "default_action")
+  storage_account_id         = try(element(azurerm_storage_account.this.*.id, lookup(var.network_rules[count.index], "storage_account_id")))
+  bypass                     = [lookup(var.network_rules[count.index], "bypass", "AzureServices")]
+  ip_rules                   = lookup(var.network_rules[count.index], "ip_rules")
+  virtual_network_subnet_ids = [data.azurerm_subnet.this.id]
+
+  dynamic "private_link_access" {
+    for_each = try(lookup(var.network_rules[count.index], "private_link_access") == null ? [] : ["private_link_access"])
+    iterator = pla
+    content {
+      endpoint_resource_id = lookup(pla.value, "endpoint_resource_id")
+      endpoint_tenant_id   = lookup(pla.value, "endpoint_tenant_id")
+    }
+  }
+}
+
+resource "azurerm_storage_blob" "this" {
+  count                  = (length(var.account) && length(var.container)) == 0 ? 0 : length(var.blob)
+  name                   = lookup(var.blob[count.index], "name")
+  storage_account_name   = try(element(azurerm_storage_account.this.*.name, lookup(var.blob[count.index], "storage_account_id")))
+  storage_container_name = try(element(azurerm_storage_container.this.*.name, lookup(var.blob[count.index], "storage_container_id")))
+  type                   = lookup(var.blob[count.index], "type")
+  size                   = lookup(var.blob[count.index], "type") == "Page" ? lookup(var.blob[count.index], "size", 0) : null
+  access_tier            = lookup(var.blob[count.index], "access_tier")
+  cache_control          = lookup(var.blob[count.index], "cache_control")
+  content_type           = lookup(var.blob[count.index], "content_type", "application/octet-stream")
+  content_md5            = lookup(var.blob[count.index], "source_uri") != null ? null : lookup(var.blob[count.index], "content_md5")
+  encryption_scope       = lookup(var.blob[count.index], "encryption_scope")
+  source                 = (lookup(var.blob[count.index], "source_uri") || lookup(var.blob[count.index], "source_content")) != null ? null : lookup(var.blob[count.index], "source")
+  source_content         = (lookup(var.blob[count.index], "source") || lookup(var.blob[count.index], "source_uri")) != null ? null : lookup(var.blob[count.index], "source_content")
+  source_uri             = (lookup(var.blob[count.index], "source") || lookup(var.blob[count.index], "source_content")) != null ? null : lookup(var.blob[count.index], "source_uri")
+  parallelism            = lookup(var.blob[count.index], "type") == "Page" ? lookup(var.blob[count.index], "parallelism", 8) : null
+  metadata               = lookup(var.blob[count.index], "metadata")
+}
+
+resource "azurerm_storage_blob_inventory_policy" "this" {
+  count              = (length(var.account) && length(var.container)) == 0 ? 0 : length(var.blob_inventory_policy)
+  storage_account_id = try(element(azurerm_storage_account.this.*.id, lookup(var.blob_inventory_policy[count.index], "storage_account_id")))
+
+  dynamic "rules" {
+    for_each = lookup(var.blob_inventory_policy[count.index], "rules")
+    content {
+      format                 = lookup(rules.value, "format")
+      name                   = lookup(rules.value, "name")
+      schedule               = lookup(rules.value, "schedule")
+      schema_fields          = lookup(rules.value, "schema_fields")
+      scope                  = lookup(rules.value, "scope")
+      storage_container_name = element(azurerm_storage_container.this.*.name, lookup(rules.value, "storage_container_id"))
+
+      dynamic "filter" {
+        for_each = try(lookup(rules.value, "filter") == null ? [] : ["filter"])
+        content {
+          blob_types            = lookup(filter.value, "blob_types")
+          include_blob_versions = lookup(filter.value, "include_blob_versions")
+          include_deleted       = lookup(filter.value, "include_deleted")
+          include_snapshots     = lookup(filter.value, "include_snapshots")
+          prefix_match          = lookup(filter.value, "prefix_match")
+          exclude_prefixes      = lookup(filter.value, "exclude_prefixes")
+        }
+      }
+    }
+  }
+}
+
 resource "azurerm_storage_container" "this" {
-  count                = length(var.account) == 0 ? 0 : length(var.container)
-  name                 = lookup(var.container[count.index], "name")
-  storage_account_name = try(element(azurerm_storage_account.this.*.name, lookup(var.container[count.index], "storage_account_id")))
+  count                             = length(var.account) == 0 ? 0 : length(var.container)
+  name                              = lookup(var.container[count.index], "name")
+  storage_account_name              = try(element(azurerm_storage_account.this.*.name, lookup(var.container[count.index], "storage_account_id")))
+  container_access_type             = lookup(var.container[count.index], "container_access_type")
+  default_encryption_scope          = lookup(var.container[count.index], "default_encryption_scope")
+  encryption_scope_override_enabled = lookup(var.container[count.index], "encryption_scope_override_enabled")
+  metadata                          = lookup(var.container[count.index], "metadata")
+}
+
+resource "azurerm_storage_container_immutability_policy" "this" {
+  count                                 = length(var.container) == 0 ? 0 : length(var.container_immutability_policy)
+  immutability_period_in_days           = lookup(var.container_immutability_policy[count.index], "immutability_period_in_days")
+  storage_container_resource_manager_id = try(element(azurerm_storage_container.this.*.id, lookup(var.container_immutability_policy[count.index], "storage_container_id")))
+  locked                                = lookup(var.container_immutability_policy[count.index], "locked")
+  protected_append_writes_all_enabled   = lookup(var.container_immutability_policy[count.index], "protected_append_writes_enabled") == true ? null : lookup(var.container_immutability_policy[count.index], "protected_append_writes_all_enabled")
+  protected_append_writes_enabled       = lookup(var.container_immutability_policy[count.index], "protected_append_writes_all_enabled") == true ? null : lookup(var.container_immutability_policy[count.index], "protected_append_writes_enabled")
+}
+
+resource "azurerm_storage_data_lake_gen2_filesystem" "this" {
+  count                    = length(var.container) == 0 ? 0 : length(var.data_lake_gen2_filesystem)
+  name                     = lookup(var.data_lake_gen2_filesystem[count.index], "name")
+  storage_account_id       = try(element(azurerm_storage_container.this.*.id, lookup(var.data_lake_gen2_filesystem[count.index], "storage_container_id")))
+  default_encryption_scope = lookup(var.data_lake_gen2_filesystem[count.index], "default_encryption_scope")
+  properties               = lookup(var.data_lake_gen2_filesystem[count.index], "properties")
+  owner                    = lookup(var.data_lake_gen2_filesystem[count.index], "owner")
+  group                    = lookup(var.data_lake_gen2_filesystem[count.index], "group")
+
+  dynamic "ace" {
+    for_each = try(lookup(var.data_lake_gen2_filesystem[count.index], "ace") == null ? [] : ["ace"])
+    content {
+      permissions = lookup(ace.value, "permissions")
+      type        = lookup(ace.value, "type")
+      scope       = lookup(ace.value, "scope")
+      id          = lookup(ace.value, "id")
+    }
+  }
+}
+
+resource "azurerm_storage_data_lake_gen2_path" "this" {
+  count              = (length(var.data_lake_gen2_filesystem) && length(var.account)) == 0 ? 0 : length(var.data_lake_gen2_path)
+  filesystem_name    = try(element(azurerm_storage_data_lake_gen2_filesystem.this.*.name, lookup(var.data_lake_gen2_path[count.index], "filesystem_id")))
+  path               = lookup(var.data_lake_gen2_path[count.index], "path")
+  resource           = lookup(var.data_lake_gen2_path[count.index], "resource")
+  storage_account_id = try(element(azurerm_storage_account.this.*.id, lookup(var.data_lake_gen2_path[count.index], "storage_account_id")))
+  owner              = lookup(var.data_lake_gen2_path[count.index], "owner")
+  group              = lookup(var.data_lake_gen2_path[count.index], "group")
+
+  dynamic "ace" {
+    for_each = try(lookup(var.data_lake_gen2_path[count.index], "ace") == null ? [] : ["ace"])
+    content {
+      permissions = lookup(ace.value, "permissions")
+      type        = lookup(ace.value, "type")
+      scope       = lookup(ace.value, "scope")
+      id          = lookup(ace.value, "id")
+    }
+  }
+}
+
+resource "azurerm_storage_encryption_scope" "this" {
+  count                              = length(var.account) == 0 ? 0 : length(var.encryption_scope)
+  name                               = lookup(var.encryption_scope[count.index], "name")
+  source                             = lookup(var.encryption_scope[count.index], "source")
+  storage_account_id                 = try(element(azurerm_storage_account.this.*.id, lookup(var.encryption_scope[count.index], "storage_account_id")))
+  infrastructure_encryption_required = lookup(var.encryption_scope[count.index], "infrastructure_encryption_required")
+  key_vault_key_id                   = try(element(module.key_vault.*.key_vault_key_id, lookup(var.encryption_scope[count.index], "key_vault_key_id")))
 }

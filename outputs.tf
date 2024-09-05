@@ -120,6 +120,32 @@ output "customer_manager_key_vault_id" {
   )
 }
 
+## LOCAL USER
+
+output "local_user_id" {
+  value = try(azurerm_storage_account_local_user.this.*.id)
+}
+
+output "local_user_name" {
+  value = try(azurerm_storage_account_local_user.this.*.name)
+}
+
+## BLOB
+
+output "blob_id" {
+  value = try(azurerm_storage_blob.this.*.id)
+}
+
+output "blob_name" {
+  value = try(azurerm_storage_blob.this.*.name)
+}
+
+## BLOB INVENTORY POLICY
+
+output "blob_inventory_policy_id" {
+  value = try(azurerm_storage_blob_inventory_policy.this.*.id)
+}
+
 ## CONTAINER ##
 
 output "container_name" {
@@ -132,4 +158,28 @@ output "container_id" {
   value = try(
     azurerm_storage_container.this.*.id
   )
+}
+
+## CONTAINER IMMUTABILITY POLICY
+
+output "container_immutability_policy_id" {
+  value = try(azurerm_storage_container_immutability_policy.this.*.id)
+}
+
+output "container_immutability_policy_period" {
+  value = try(azurerm_storage_container_immutability_policy.this.*.immutability_period_in_days)
+}
+
+## DATA LAKE GEN2
+
+output "data_lake_gen2_filesystem_id" {
+  value = try(azurerm_storage_data_lake_gen2_filesystem.this.*.id)
+}
+
+output "data_lake_gen2_filesystem_name" {
+  value = try(azurerm_storage_data_lake_gen2_filesystem.this.*.name)
+}
+
+output "data_lake_gen2_path_id" {
+  value = try(azurerm_storage_data_lake_gen2_path.this.*.id)
 }

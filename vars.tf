@@ -353,11 +353,192 @@ variable "customer_managed_key" {
   default = []
 }
 
-variable "container" {
+variable "local_user" {
   type = list(object({
-    id                 = number
-    name               = string
-    storage_account_id = optional(any)
+    id                   = number
+    name                 = string
+    storage_account_id   = any
+    home_directory       = optional(string)
+    ssh_key_enabled      = optional(bool)
+    ssh_password_enabled = optional(bool)
+    permission_scope = optional(list(object({
+      resource_name = string
+      service       = string
+      permissions = optional(list(object({
+        all    = optional(bool)
+        create = optional(bool)
+        delete = optional(bool)
+        list   = optional(bool)
+        read   = optional(bool)
+        write  = optional(bool)
+      })))
+    })))
+    ssh_authorized_key = optional(list(object({
+      key         = string
+      description = optional(string)
+    })))
   }))
   default = []
+}
+
+variable "network_rules" {
+  type = list(object({
+    id                         = number
+    default_action             = string
+    storage_account_id         = any
+    bypass                     = optional(any)
+    ip_rules                   = optional(set(any))
+    virtual_network_subnet_ids = optional(set(any))
+    private_link_access = optional(list(object({
+      endpoint_resource_id = any
+      endpoint_tenant_id   = optional(any)
+    })))
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.network_rules : true if contains(["Deny", "Allow"], a.default_action)]) == length(var.network_rules)
+    error_message = "Specifies the default action of allow or deny when no other rules match. Valid options are Deny or Allow."
+  }
+
+  validation {
+    condition     = length([for b in var.network_rules : true if contains(["Logging", "Metrics", "AzureServices", "None"], b.bypass)]) == length(var.network_rules)
+    error_message = "Specifies whether traffic is bypassed for Logging/Metrics/AzureServices. Valid options are any combination of Logging, Metrics, AzureServices, or None. Defaults to [\"AzureServices\"]."
+  }
+}
+
+variable "blob" {
+  type = list(object({
+    id                   = number
+    name                 = string
+    storage_account_id   = any
+    storage_container_id = any
+    type                 = string
+    size                 = optional(number)
+    access_tier          = optional(string)
+    cache_control        = optional(string)
+    content_type         = optional(string)
+    content_md5          = optional(string)
+    encryption_scope     = optional(string)
+    source               = optional(string)
+    source_content       = optional(string)
+    source_uri           = optional(string)
+    parallelism          = optional(number)
+    metadata             = optional(map(string))
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.blob : true if contains(["Archive", "Cool", "Hot"], a.access_tier)]) == length(var.blob)
+    error_message = "The access tier of the storage blob. Possible values are Archive, Cool and Hot."
+  }
+
+  validation {
+    condition     = length([for b in var.blob : true if contains(["Append", "Block", "Page"], b.type)]) == length(var.blob)
+    error_message = "The type of the storage blob to be created. Possible values are Append, Block or Page. Changing this forces a new resource to be created."
+  }
+}
+
+variable "blob_inventory_policy" {
+  type = list(object({
+    id                 = number
+    storage_account_id = any
+    rules = list(object({
+      format               = string
+      name                 = string
+      schedule             = string
+      schema_fields        = set(any)
+      scope                = string
+      storage_container_id = any
+      filter = optional(list(object({
+        blob_types            = set(any)
+        include_blob_versions = optional(bool)
+        include_deleted       = optional(bool)
+        include_snapshots     = optional(bool)
+        prefix_match          = optional(set(any))
+        exclude_prefixes      = optional(set(any))
+      })))
+    }))
+  }))
+  default = []
+}
+
+variable "container" {
+  type = list(object({
+    id                                = number
+    name                              = string
+    storage_account_id                = any
+    container_access_type             = optional(string)
+    default_encryption_scope          = optional(string)
+    encryption_scope_override_enabled = optional(bool)
+    metadata                          = optional(map(string))
+  }))
+  default = []
+}
+
+variable "container_immutability_policy" {
+  type = list(object({
+    id                                  = number
+    immutability_period_in_days         = number
+    storage_container_id                = any
+    locked                              = optional(bool)
+    protected_append_writes_all_enabled = optional(bool)
+    protected_append_writes_enabled     = optional(bool)
+  }))
+  default = []
+}
+
+variable "data_lake_gen2_filesystem" {
+  type = list(object({
+    id                       = number
+    name                     = string
+    storage_account_id       = any
+    default_encryption_scope = optional(string)
+    properties               = optional(map(string))
+    owner                    = optional(string)
+    group                    = optional(string)
+    ace = optional(list(object({
+      permissions = string
+      type        = string
+      scope       = optional(string)
+      id          = optional(string)
+    })))
+  }))
+  default = []
+}
+
+variable "data_lake_gen2_path" {
+  type = list(object({
+    id                 = number
+    filesystem_id      = any
+    path               = string
+    resource           = string
+    storage_account_id = any
+    owner              = optional(string)
+    group              = optional(string)
+    ace = optional(list(object({
+      permissions = string
+      type        = string
+      scope       = optional(string)
+      id          = optional(string)
+    })))
+  }))
+  default = []
+}
+
+variable "encryption_scope" {
+  type = list(object({
+    id                                 = number
+    name                               = string
+    source                             = string
+    storage_account_id                 = any
+    infrastructure_encryption_required = optional(bool)
+    key_vault_key_id                   = optional(any)
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.encryption_scope : true if contains(["Microsoft.KeyVault", "Microsoft.Storage"], a.source)]) == length(var.encryption_scope)
+    error_message = "The source of the Storage Encryption Scope. Possible values are Microsoft.KeyVault and Microsoft.Storage."
+  }
 }
