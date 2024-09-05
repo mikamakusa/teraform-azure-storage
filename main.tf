@@ -506,3 +506,103 @@ resource "azurerm_storage_encryption_scope" "this" {
   infrastructure_encryption_required = lookup(var.encryption_scope[count.index], "infrastructure_encryption_required")
   key_vault_key_id                   = try(element(module.key_vault.*.key_vault_key_id, lookup(var.encryption_scope[count.index], "key_vault_key_id")))
 }
+
+resource "azurerm_storage_management_policy" "this" {
+  count              = length(var.account) == 0 ? 0 : length(var.management_policy)
+  storage_account_id = try(element(azurerm_storage_account.this.*.id, lookup(var.management_policy[count.index], "storage_account_id")))
+
+  dynamic "rule" {
+    for_each = try(lookup(var.management_policy[count.index], "rule") == null ? [] : ["rule"])
+    content {
+      enabled = lookup(rule.value, "enabled")
+      name    = lookup(rule.value, "name")
+
+      dynamic "filters" {
+        for_each = try(lookup(rule.value, "filters") == null ? [] : ["filters"])
+        iterator = fi
+        content {
+          blob_types   = lookup(fi.value, "blob_types")
+          prefix_match = lookup(fi.value, "prefix_match")
+
+          dynamic "match_blob_index_tag" {
+            for_each = try(lookup(fi.value, "match_blob_index_tag") == null ? [] : ["match_blob_index_tag"])
+            iterator = ma
+            content {
+              name      = lookup(ma.value, "name")
+              value     = lookup(ma.value, "value")
+              operation = lookup(ma.value, "operation")
+            }
+          }
+        }
+      }
+
+      dynamic "actions" {
+        for_each = try(lookup(rule.value, "actions") == null ? [] : ["actions"])
+        iterator = ac
+        content {
+          dynamic "base_blob" {
+            for_each = try(lookup(ac.value, "base_blob") == null ? [] : ["base_blob"])
+            iterator = ba
+            content {
+              tier_to_archive_after_days_since_creation_greater_than         = lookup(ba.value, "tier_to_archive_after_days_since_creation_greater_than")
+              tier_to_archive_after_days_since_last_access_time_greater_than = lookup(ba.value, "tier_to_archive_after_days_since_last_access_time_greater_than")
+              tier_to_archive_after_days_since_last_tier_change_greater_than = lookup(ba.value, "tier_to_archive_after_days_since_last_tier_change_greater_than")
+              tier_to_archive_after_days_since_modification_greater_than     = lookup(ba.value, "tier_to_archive_after_days_since_modification_greater_than")
+              tier_to_cold_after_days_since_creation_greater_than            = lookup(ba.value, "tier_to_cold_after_days_since_creation_greater_than")
+              tier_to_cold_after_days_since_last_access_time_greater_than    = lookup(ba.value, "tier_to_cold_after_days_since_last_access_time_greater_than")
+              tier_to_cold_after_days_since_modification_greater_than        = lookup(ba.value, "tier_to_cold_after_days_since_modification_greater_than")
+              tier_to_cool_after_days_since_creation_greater_than            = lookup(ba.value, "tier_to_cool_after_days_since_creation_greater_than")
+              tier_to_cool_after_days_since_last_access_time_greater_than    = lookup(ba.value, "tier_to_cool_after_days_since_last_access_time_greater_than")
+              tier_to_cool_after_days_since_modification_greater_than        = lookup(ba.value, "tier_to_cool_after_days_since_modification_greater_than")
+              auto_tier_to_hot_from_cool_enabled                             = lookup(ba.value, "auto_tier_to_hot_from_cool_enabled")
+              delete_after_days_since_creation_greater_than                  = lookup(ba.value, "delete_after_days_since_creation_greater_than")
+              delete_after_days_since_last_access_time_greater_than          = lookup(ba.value, "delete_after_days_since_last_access_time_greater_than")
+              delete_after_days_since_modification_greater_than              = lookup(ba.value, "delete_after_days_since_modification_greater_than")
+            }
+          }
+
+          dynamic "snapshot" {
+            for_each = try(lookup(ac.value, "snapshot") == null ? [] : ["snapshot"])
+            iterator = sn
+            content {
+              change_tier_to_archive_after_days_since_creation               = lookup(sn.value, "change_tier_to_archive_after_days_since_creation")
+              change_tier_to_cool_after_days_since_creation                  = lookup(sn.value, "change_tier_to_cool_after_days_since_creation")
+              tier_to_archive_after_days_since_last_tier_change_greater_than = lookup(sn.value, "tier_to_archive_after_days_since_last_tier_change_greater_than")
+              tier_to_cold_after_days_since_creation_greater_than            = lookup(sn.value, "tier_to_cold_after_days_since_creation_greater_than")
+              delete_after_days_since_creation_greater_than                  = lookup(sn.value, "delete_after_days_since_creation_greater_than")
+
+            }
+          }
+
+          dynamic "version" {
+            for_each = try(lookup(ac.value, "version") == null ? [] : ["version"])
+            iterator = ve
+            content {
+              change_tier_to_archive_after_days_since_creation               = lookup(ve.value, "change_tier_to_archive_after_days_since_creation")
+              change_tier_to_cool_after_days_since_creation                  = lookup(ve.value, "change_tier_to_cool_after_days_since_creation")
+              tier_to_archive_after_days_since_last_tier_change_greater_than = lookup(ve.value, "tier_to_archive_after_days_since_last_tier_change_greater_than")
+              tier_to_cold_after_days_since_creation_greater_than            = lookup(ve.value, "tier_to_cold_after_days_since_creation_greater_than")
+              delete_after_days_since_creation                               = lookup(ve.value, "delete_after_days_since_creation")
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "azurerm_storage_object_replication" "this" {
+  count                          = (length(var.account) && length(var.container)) == 0 ? 0 : length(var.object_replication)
+  destination_storage_account_id = try(element(azurerm_storage_account.this.*.id, lookup(var.object_replication[count.index], "destination_storage_account_id")))
+  source_storage_account_id      = try(element(azurerm_storage_account.this.*.id, lookup(var.object_replication[count.index], "source_storage_account_id")))
+
+  dynamic "rules" {
+    for_each = lookup(var.object_replication[count.index], "rules")
+    content {
+      destination_container_name   = try(element(azurerm_storage_container.this.*.id, lookup(rules.value, "destination_container_name")))
+      source_container_name        = try(element(azurerm_storage_container.this.*.id, lookup(rules.value, "source_container_name")))
+      copy_blobs_created_after     = lookup(rules.value, "copy_blobs_created_after", "OnlyNewObjects")
+      filter_out_blobs_with_prefix = lookup(rules.value, "filter_out_blobs_with_prefix")
+    }
+  }
+}

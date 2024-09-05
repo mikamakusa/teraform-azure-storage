@@ -542,3 +542,70 @@ variable "encryption_scope" {
     error_message = "The source of the Storage Encryption Scope. Possible values are Microsoft.KeyVault and Microsoft.Storage."
   }
 }
+
+variable "management_policy" {
+  type = list(object({
+    id                 = number
+    storage_account_id = any
+    rule = optional(list(object({
+      enabled = bool
+      name    = string
+      filters = optional(list(object({
+        blob_types   = set(any)
+        prefix_match = optional(set(any))
+        match_blob_index_tag = optional(list(object({
+          name      = string
+          value     = string
+          operation = optional(set())
+        })))
+      })))
+      actions = optional(list(object({
+        base_blob = optional(list(object({
+          tier_to_archive_after_days_since_creation_greater_than         = optional(number)
+          tier_to_archive_after_days_since_last_access_time_greater_than = optional(number)
+          tier_to_archive_after_days_since_last_tier_change_greater_than = optional(number)
+          tier_to_archive_after_days_since_modification_greater_than     = optional(number)
+          tier_to_cold_after_days_since_creation_greater_than            = optional(number)
+          tier_to_cold_after_days_since_last_access_time_greater_than    = optional(number)
+          tier_to_cold_after_days_since_modification_greater_than        = optional(number)
+          tier_to_cool_after_days_since_creation_greater_than            = optional(number)
+          tier_to_cool_after_days_since_last_access_time_greater_than    = optional(number)
+          tier_to_cool_after_days_since_modification_greater_than        = optional(number)
+          auto_tier_to_hot_from_cool_enabled                             = optional(bool)
+          delete_after_days_since_creation_greater_than                  = optional(number)
+          delete_after_days_since_last_access_time_greater_than          = optional(number)
+          delete_after_days_since_modification_greater_than              = optional(number)
+        })))
+        snapshot = optional(list(object({
+          change_tier_to_archive_after_days_since_creation               = optional(number)
+          change_tier_to_cool_after_days_since_creation                  = optional(number)
+          tier_to_archive_after_days_since_last_tier_change_greater_than = optional(number)
+          tier_to_cold_after_days_since_creation_greater_than            = optional(number)
+          delete_after_days_since_creation_greater_than                  = optional(number)
+        })))
+        version = optional(list(object({
+          change_tier_to_archive_after_days_since_creation               = optional(number)
+          change_tier_to_cool_after_days_since_creation                  = optional(number)
+          tier_to_archive_after_days_since_last_tier_change_greater_than = optional(number)
+          tier_to_cold_after_days_since_creation_greater_than            = optional(number)
+          delete_after_days_since_creation                               = optional(number)
+        })))
+      })))
+    })))
+  }))
+  default = []
+}
+
+variable "object_replication" {
+  type = list(object({
+    id                             = number
+    destination_storage_account_id = any
+    source_storage_account_id      = any
+    rules = list(object({
+      destination_container_name   = any
+      source_container_name        = any
+      copy_blobs_created_after     = optional(string)
+      filter_out_blobs_with_prefix = optional(set(string))
+    }))
+  }))
+}
