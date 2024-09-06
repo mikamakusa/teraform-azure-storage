@@ -608,4 +608,161 @@ variable "object_replication" {
       filter_out_blobs_with_prefix = optional(set(string))
     }))
   }))
+  default = []
+}
+
+variable "queue" {
+  type = list(object({
+    id                 = number
+    name               = string
+    storage_account_id = any
+    metadata           = optional(map(string))
+  }))
+  default = []
+}
+
+variable "share" {
+  type = list(object({
+    id                 = number
+    name               = string
+    quota              = number
+    storage_account_id = any
+    access_tier        = optional(string)
+    enabled_protocol   = optional(string)
+    metadata           = optional(map(string))
+    acl = optional(list(object({
+      id = string
+      access_policy = optional(list(object({
+        permissions = string
+        start       = optional(string)
+        expiry      = optional(string)
+      })))
+    })))
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.share : true if contains(["Hot", "Cool", "TransactionOptimized", "Premium"], a.access_tier)]) == length(var.share)
+    error_message = "The access tier of the File Share. Possible values are Hot, Cool and TransactionOptimized, Premium."
+  }
+
+  validation {
+    condition     = length([for b in var.share : true if contains(["SMB", "NFS"], b.enabled_protocol)]) == length(var.share)
+    error_message = "Possible values are SMB and NFS. The SMB indicates the share can be accessed by SMBv3.0, SMBv2.1 and REST. The NFS indicates the share can be accessed by NFSv4.1."
+  }
+}
+
+variable "share_directory" {
+  type = list(object({
+    id               = number
+    name             = string
+    storage_share_id = any
+    metadata         = optional(map(string))
+  }))
+  default = []
+}
+
+variable "share_file" {
+  type = list(object({
+    id                  = number
+    name                = string
+    storage_share_id    = any
+    path                = optional(string)
+    source              = optional(string)
+    content_type        = optional(string)
+    content_disposition = optional(string)
+    content_md5         = optional(string)
+    content_encoding    = optional(string)
+    metadata            = optional(map(string))
+  }))
+  default = []
+}
+
+variable "sync" {
+  type = list(object({
+    id                      = number
+    name                    = string
+    incoming_traffic_policy = optional(string)
+    tags                    = optional(map(string))
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.sync : true if contains(["AllowAllTraffic", "AllowVirtualNetworksOnly"], a.incoming_traffic_policy)]) == length(var.sync)
+    error_message = "Incoming traffic policy. Possible values are AllowAllTraffic and AllowVirtualNetworksOnly."
+  }
+}
+
+variable "sync_cloud_endpoint" {
+  type = list(object({
+    id                    = number
+    file_share_name       = string
+    name                  = string
+    storage_account_id    = any
+    storage_sync_group_id = any
+  }))
+  default = []
+}
+
+variable "sync_group" {
+  type = list(object({
+    id              = number
+    name            = string
+    storage_sync_id = any
+  }))
+  default = []
+}
+
+variable "sync_server_endpoint" {
+  type = list(object({
+    id                         = number
+    file_share_id              = any
+    name                       = string
+    server_local_path          = string
+    storage_sync_group_id      = any
+    cloud_tiering_enabled      = optional(bool)
+    volume_free_space_percent  = optional(number)
+    tier_files_older_than_days = optional(number)
+    initial_download_policy    = optional(string)
+    local_cache_mode           = optional(string)
+  }))
+  default = []
+
+  validation {
+    condition     = length([for a in var.sync_server_endpoint : true if contains(["NamespaceThenModifiedFiles", "NamespaceOnly", "AvoidTieredFiles"], a.initial_download_policy)]) == length(var.sync_server_endpoint)
+    error_message = "Valid Values includes NamespaceThenModifiedFiles, NamespaceOnly, and AvoidTieredFiles."
+  }
+
+  validation {
+    condition     = length([for b in var.sync_server_endpoint : true if contains(["UpdateLocallyCachedFiles", "DownloadNewAndModifiedFiles"], b.local_cache_mode)]) == length(var.sync_server_endpoint)
+    error_message = "Valid Values include UpdateLocallyCachedFiles and DownloadNewAndModifiedFiles."
+  }
+}
+
+variable "table" {
+  type = list(object({
+    id                 = number
+    name               = string
+    storage_account_id = any
+    acl = optional(list(object({
+      id = string
+      access_policy = optional(list(object({
+        permissions = string
+        start       = optional(string)
+        expiry      = optional(string)
+      })))
+    })))
+  }))
+  default = []
+}
+
+variable "table_entity" {
+  type = list(object({
+    id               = number
+    storage_table_id = any
+    entity           = map(string)
+    partition_key    = string
+    row_key          = string
+  }))
+  default = []
 }

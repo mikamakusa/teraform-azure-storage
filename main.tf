@@ -606,3 +606,124 @@ resource "azurerm_storage_object_replication" "this" {
     }
   }
 }
+
+resource "azurerm_storage_queue" "this" {
+  count                = length(var.account) == 0 ? 0 : length(var.queue)
+  name                 = lookup(var.queue[count.index], "name")
+  storage_account_name = try(element(azurerm_storage_account.this.*.name, lookup(var.queue[count.index], "storage_account_id")))
+  metadata             = lookup(var.queue[count.index], "metadata")
+}
+
+resource "azurerm_storage_share" "this" {
+  count                = length(var.account) == 0 ? 0 : length(var.share)
+  name                 = lookup(var.share[count.index], "name")
+  quota                = lookup(var.share[count.index], "quota")
+  storage_account_name = try(element(azurerm_storage_account.this.*.name, lookup(var.share, "storage_account_id")))
+  access_tier          = lookup(var.share[count.index], "access_tier")
+  enabled_protocol     = lookup(var.share[count.index], "enabled_protocol")
+  metadata             = lookup(var.share[count.index], "metadata")
+
+  dynamic "acl" {
+    for_each = try(lookup(var.share[count.index], "acl") == null ? [] : ["acl"])
+    content {
+      id = lookup(acl.value, "id")
+
+      dynamic "access_policy" {
+        for_each = try(lookup(acl.value, "access_policy") == null ? [] : ["access_policy"])
+        iterator = ap
+        content {
+          permissions = lookup(ap.value, "permissions")
+          start       = lookup(ap.value, "start")
+          expiry      = lookup(ap.value, "expiry")
+        }
+      }
+    }
+  }
+}
+
+resource "azurerm_storage_share_directory" "this" {
+  count            = length(var.share) == 0 ? 0 : length(var.share_directory)
+  name             = lookup(var.share_directory[count.index], "name")
+  storage_share_id = try(element(azurerm_storage_share.this.*.id, lookup(var.share_directory, "storage_share_id")))
+  metadata         = lookup(var.share_directory[count.index], "metadata")
+}
+
+resource "azurerm_storage_share_file" "this" {
+  count               = length(var.share) == 0 ? 0 : length(var.share_file)
+  name                = lookup(var.share_file[count.index], "name")
+  storage_share_id    = try(element(azurerm_storage_share.this.*.id, lookup(var.share_file, "storage_share_id")))
+  path                = lookup(var.share_file[count.index], "path")
+  source              = lookup(var.share_file[count.index], "source")
+  content_type        = lookup(var.share_file[count.index], "content_type", "application/octet-stream")
+  content_disposition = lookup(var.share_file[count.index], "content_disposition")
+  content_md5         = lookup(var.share_file[count.index], "content_md5")
+  content_encoding    = lookup(var.share_file[count.index], "content_encoding")
+  metadata            = lookup(var.share_file[count.index], "metadata")
+}
+
+resource "azurerm_storage_sync" "this" {
+  count                   = length(var.sync)
+  location                = data.azurerm_resource_group.this.location
+  name                    = lookup(var.sync[count.index], "name")
+  resource_group_name     = data.azurerm_resource_group.this.name
+  incoming_traffic_policy = lookup(var.sync[count.index], "incoming_traffic_policy", "AllowAllTraffic")
+  tags                    = merge(var.tags, lookup(var.sync[count.index], "tags"))
+}
+
+resource "azurerm_storage_sync_cloud_endpoint" "this" {
+  count                 = (length(var.account) && length(var.sync_group) && length(var.share)) == 0 ? 0 : length(var.sync_cloud_endpoint)
+  file_share_name       = try(element(azurerm_storage_share.this.*.name, lookup(var.sync_cloud_endpoint[count.index], "file_share_id")))
+  name                  = lookup(var.sync_cloud_endpoint[count.index], "name")
+  storage_account_id    = try(element(azurerm_storage_account.this.*.id, lookup(var.sync_cloud_endpoint[count.index], "storage_account_id")))
+  storage_sync_group_id = try(element(azurerm_storage_sync_group.this.*.id, lookup(var.sync_cloud_endpoint[count.index], "storage_sync_group_id")))
+}
+
+resource "azurerm_storage_sync_group" "this" {
+  count           = length(var.sync) == 0 ? 0 : length(var.sync_group)
+  name            = lookup(var.sync_group[count.index], "name")
+  storage_sync_id = try(element(azurerm_storage_sync.this.*.id, lookup(var.sync_group[count.index], "storage_sync_id")))
+}
+
+resource "azurerm_storage_sync_server_endpoint" "this" {
+  count                      = (length(var.sync_group) && length(var.sync)) == 0 ? 0 : length(var.sync_server_endpoint)
+  name                       = lookup(var.sync_server_endpoint[count.index], "name")
+  registered_server_id       = try(element(azurerm_storage_sync.this.*.registered_servers[0], lookup(var.sync_server_endpoint[count.index], "registered_server_id")))
+  server_local_path          = lookup(var.sync_server_endpoint[count.index], "server_local_path")
+  storage_sync_group_id      = try(element(azurerm_storage_sync_group.this.*.id, lookup(var.sync_server_endpoint[count.index], "storage_sync_group_id")))
+  cloud_tiering_enabled      = lookup(var.sync_server_endpoint[count.index], "cloud_tiering_enabled", false)
+  volume_free_space_percent  = lookup(var.sync_server_endpoint[count.index], "volume_free_space_percent", 20)
+  tier_files_older_than_days = lookup(var.sync_server_endpoint[count.index], "tier_files_older_than_days")
+  initial_download_policy    = lookup(var.sync_server_endpoint[count.index], "initial_download_policy", "NamespaceThenModifiedFiles")
+  local_cache_mode           = lookup(var.sync_server_endpoint[count.index], "local_cache_mode", "UpdateLocallyCachedFiles")
+}
+
+resource "azurerm_storage_table" "this" {
+  count                = length(var.account) == 0 ? 0 : length(var.table)
+  name                 = lookup(var.table[count.index], "name")
+  storage_account_name = try(element(azurerm_storage_account.this.*.name, lookup(var.table[count.index], "storage_account_id")))
+
+  dynamic "acl" {
+    for_each = try(lookup(var.table[count.index], "acl") == null ? [] : ["acl"])
+    content {
+      id = lookup(acl.value, "id")
+
+      dynamic "access_policy" {
+        for_each = try(lookup(acl.value, "access_policy") == null ? [] : ["access_policy"])
+        iterator = ap
+        content {
+          permissions = lookup(ap.value, "permissions")
+          start       = lookup(ap.value, "start")
+          expiry      = lookup(ap.value, "expiry")
+        }
+      }
+    }
+  }
+}
+
+resource "azurerm_storage_table_entity" "this" {
+  count            = length(var.table) == 0 ? 0 : length(var.table_entity)
+  storage_table_id = try(element(azurerm_storage_table.this.*.id, lookup(var.table_entity[count.index], "storage_table_id")))
+  entity           = lookup(var.table_entity[count.index], "entity")
+  partition_key    = lookup(var.table_entity[count.index], "partition_key")
+  row_key          = lookup(var.table_entity[count.index], "row_key")
+}

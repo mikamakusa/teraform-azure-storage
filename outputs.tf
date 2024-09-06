@@ -183,3 +183,125 @@ output "data_lake_gen2_filesystem_name" {
 output "data_lake_gen2_path_id" {
   value = try(azurerm_storage_data_lake_gen2_path.this.*.id)
 }
+
+## ENCRYPTION SCOPE
+
+output "encryption_scope_id" {
+  value = try(azurerm_storage_encryption_scope.this.*.id)
+}
+
+output "encryption_scope_name" {
+  value = try(azurerm_storage_encryption_scope.this.*.name)
+}
+
+## MANAGEMENT POLICY
+
+output "management_policy_id" {
+  value = try(azurerm_storage_management_policy.this.*.id)
+}
+
+## OBJECT REPLICATION
+
+output "object_replication_id" {
+  value = try(azurerm_storage_object_replication.this.*.id)
+}
+
+## QUEUE
+
+output "queue_id" {
+  value = try(azurerm_storage_queue.this.*.id)
+}
+
+output "queue_name" {
+  value = try(azurerm_storage_queue.this.*.name)
+}
+
+output "queue_storage_account_name" {
+  value = try(azurerm_storage_queue.this.*.storage_account_name)
+}
+
+## SHARE
+
+output "share_id" {
+  value = try(azurerm_storage_share.this.*.id)
+}
+
+output "share_name" {
+  value = try(azurerm_storage_share.this.*.name)
+}
+
+## SHARE DIRECTORY
+
+output "share_directory_id" {
+  value = try(azurerm_storage_share_directory.this.*.id)
+}
+
+output "share_directory_name" {
+  value = try(azurerm_storage_share_directory.this.*.name)
+}
+
+## SHARE FILE
+
+output "share_file_id" {
+  value = try(azurerm_storage_share_file.this.*.id)
+}
+
+output "share_file_name" {
+  value = try(azurerm_storage_share_file.this.*.name)
+}
+
+output "share_file_source" {
+  value = try(azurerm_storage_share_file.this.*.source)
+}
+
+## SYNC
+
+output "sync_id" {
+  value = try(azurerm_storage_sync.this.*.id)
+}
+
+output "sync_name" {
+  value = try(azurerm_storage_sync.this.*.name)
+}
+
+output "sync_group_id" {
+  value = try(azurerm_storage_sync_group.this.*.id)
+}
+
+output "sync_group_name" {
+  value = try(azurerm_storage_sync_group.this.*.name)
+}
+
+output "sync_cloud_endpoint_id" {
+  value = try(azurerm_storage_sync_cloud_endpoint.this.*.id)
+}
+
+output "sync_cloud_endpoint_name" {
+  value = try(azurerm_storage_sync_cloud_endpoint.this.*.name)
+}
+
+output "sync_server_endpoint_id" {
+  value = try(azurerm_storage_sync_server_endpoint.this.*.id)
+}
+
+output "sync_server_endpoint_name" {
+  value = try(azurerm_storage_sync_server_endpoint.this.*.name)
+}
+
+## TABLE
+
+output "table_id" {
+  value = try(azurerm_storage_table.this.*.id)
+}
+
+output "table_name" {
+  value = try(azurerm_storage_table.this.*.name)
+}
+
+output "table_entity_id" {
+  value = try(azurerm_storage_table_entity.this.*.id)
+}
+
+output "table_entity_table_name" {
+  value = try(azurerm_storage_table_entity.this.*.table_name)
+}
